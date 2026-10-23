@@ -12,7 +12,11 @@ const pad = n => String(n).padStart(2, '0');
 const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const clock12 = () => { const d = new Date(); return ((d.getHours() % 12) || 12) + ':' + pad(d.getMinutes()); };
 const relRect = el => { const s = SCREEN.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x:(r.left-s.left)/SC, y:(r.top-s.top)/SC, w:r.width/SC, h:r.height/SC }; };
-const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch(e){} };
+const vib = p => { 
+  try { 
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(p); 
+  } catch(e){} 
+};
 const nowTime = () => clock12();
 
 /* ============================================================
