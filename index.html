@@ -52,7 +52,15 @@ svg{display:block}
   aspect-ratio: auto !important;
   margin: 0 !important;
 }
-#screen{position:absolute;inset:0;overflow:hidden}
+/* 找到原来的 #screen */
+#screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  
+  /* 👇 加上这一句，强制整体向上提 40px (数值你可以自己微调) */
+  transform: translateY(-40px); 
+}
 #wall{position:absolute;inset:-2px;background:linear-gradient(160deg,#2b3a67,#1e2a4a 40%,#0f1626)}
 #wall.dim{filter:blur(24px) brightness(.62);transform:scale(1.08)}
 .layer{position:absolute;inset:0}
