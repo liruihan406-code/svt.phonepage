@@ -1,23 +1,25 @@
-window.onerror = function() { return true; }; // 强制忽略小错误，防止全屏黑屏
 'use strict';
+window.LOCK_NOTES = window.LOCK_NOTES || [];
+// 全局防闪退
+window.onerror = function(msg, url, line) { 
+  console.warn("拦截到报错，已阻止闪退: " + msg + " 在行: " + line); 
+  return true; 
+};
 /* ============================================================
    主框架：锁屏、密码、主屏、页面切换、键盘、启动
-   依赖：data.js、i18n.js、apps.js
+   依项：data.js、i18n.js、apps.js
    ============================================================ */
 
 const $ = s => document.querySelector(s);
 const SCREEN = $('#screen'), APP = $('#appL'), HOME = $('#homeL'), LOCK = $('#lockL'), PIN = $('#pinL'), OV = $('#ov');
 let view = 'lock', pincode = '', SC = 1, lastRect = null;
-
-const pad = n => String(n).padStart(2, '0');
+let currentPg = null;          // 当前页面 DOM，页面内查询用
+let homeAnim = null, appAnim = null;  // 保存动画引用
+const $pg = s => currentPg ? currentPg.querySelector(s) : null;const pad = n => String(n).padStart(2, '0');
 const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const clock12 = () => { const d = new Date(); return ((d.getHours() % 12) || 12) + ':' + pad(d.getMinutes()); };
 const relRect = el => { const s = SCREEN.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x:(r.left-s.left)/SC, y:(r.top-s.top)/SC, w:r.width/SC, h:r.height/SC }; };
-const vib = p => { 
-  try { 
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(p); 
-  } catch(e){} 
-};
+const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch(e){} };
 const nowTime = () => clock12();
 
 /* ============================================================
@@ -62,10 +64,42 @@ const G = {
    锁屏
    ============================================================ */
 function renderLock(){
-  $('#lkc').innerHTML = `<div class="lk-date">${fmtLockDate()}</div><div class="lk-time" id="lkt">${clock12()}</div>
-  <div class="lk-notes">${LOCK_NOTES.map(n=>`<div class="ncard"><div class="ni">T</div><div class="nt"><div class="nh"><span>${esc(n.title)}</span><small>${n.time}</small></div><div class="nb">${esc(n.body)}</div></div></div>`).join('')}</div>
+  const now = new Date();
+  let targetYear = now.getFullYear();
+  let targetDate = new Date(targetYear, 11, 11); 
+  if (now > targetDate) {
+    targetDate.setFullYear(targetYear + 1); 
+  }
+  const diffDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+
+  $('#lkc').innerHTML = `
+  <div class="lk-date">${fmtLockDate()}</div>
+  <div class="lk-time" id="lkt">${clock12()}</div>
+  
+  <div class="lk-notes">
+    ${LOCK_NOTES.map(n=>{
+      let title = n.title;
+      let body = n.body;
+      if (title === '日历倒计时') {
+        title = '日历';
+        body = `距离 💖 还有 ${diffDays} 天`;
+      }
+      const isCal = n.title === '日历倒计时';
+      const niStyle = isCal ? 'background:#fff; color:#ff3b30; border-radius:9px;' : '';
+      const niText = isCal ? '日历' : 'V';
+
+      return `<div class="ncard">
+        <div class="ni" style="${niStyle}">${niText}</div>
+        <div class="nt">
+          <div class="nh"><span>${esc(title)}</span><small>${n.time}</small></div>
+          <div class="nb">${esc(body)}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
   <div class="lk-hint">${t('swipeUp')}</div>`;
 }
+
 function goPin(){
   view='pin'; pincode=''; $('#wall').classList.add('dim');
   const lkc=$('#lkc');
@@ -78,13 +112,16 @@ function goPin(){
   PIN.animate([{opacity:0,transform:'translateY(40px)'},{opacity:1,transform:'none'}],
     {duration:420,easing:'cubic-bezier(.2,.9,.25,1)'});
 }
+
 const PL=['','ABC','DEF','GHI','JKL','MNO','PQRS','TUV','WXYZ'];
 function renderPin(){
   PIN.innerHTML = `<div class="pt">${t('enterPass')}</div><div class="pdots" id="pdots">${[0,1,2,3].map(i=>`<i class="${i<pincode.length?'on':''}"></i>`).join('')}</div>
   <div class="pkeys">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="pk" onclick="pinPress('${n}',this)"><b>${n}</b><small>${PL[n-1]}</small></button>`).join('')}<span></span><button class="pk" onclick="pinPress('0',this)"><b>0</b><small></small></button><span></span></div>
   <div class="pbot"><button>${t('emergency')}</button><button id="pcancel" onclick="pinCancelOrDel()">${pincode?t('delete'):t('cancel')}</button></div>`;
 }
+
 function pinDots(){ $('#pdots').innerHTML=[0,1,2,3].map(i=>`<i class="${i<pincode.length?'on':''}"></i>`).join(''); $('#pcancel').textContent=pincode?t('delete'):t('cancel'); }
+
 function pinPress(n,el){
   if(pincode.length>=4)return; el.classList.add('dn'); setTimeout(()=>el.classList.remove('dn'),90); vib(8); pincode+=n; pinDots();
   if(pincode.length===4){
@@ -92,7 +129,9 @@ function pinPress(n,el){
     else { setTimeout(()=>{ const d=$('#pdots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); vib([60,40,60]); setTimeout(()=>{pincode='';pinDots();},420); },120); }
   }
 }
+
 function pinCancelOrDel(){ if(pincode){ pincode=pincode.slice(0,-1); pinDots(); return; } pinCancel(); }
+
 function pinCancel(){
   view='lock';
   PIN.getAnimations().forEach(a=>a.cancel());
@@ -103,6 +142,7 @@ function pinCancel(){
   lkc.animate([{opacity:0,transform:'translateY(-120px)'},{opacity:1,transform:'none'}],{duration:420,easing:'cubic-bezier(.2,.9,.25,1)'});
   $('#wall').classList.remove('dim');
 }
+
 function unlock(){
   view='home'; $('#wall').classList.remove('dim');
   const lkc=$('#lkc'); lkc.getAnimations().forEach(a=>a.cancel());
@@ -129,47 +169,141 @@ function appBtn(id){
     <span class="lbl">${name}</span>
   </button>`;
 }
+
+let cachedWeatherTemp = 16; 
+let hasFetchedWeather = false;
+
 function renderHome(){
   const d=new Date();
   HOME.innerHTML = `<div class="hgrid">
-    <button class="widget wcal"><div class="wd">${wdLong(d.getFullYear(),d.getMonth()+1,d.getDate())}</div><div class="wn">${d.getDate()}</div></button>
-    <button class="widget wwx"><div class="c">${t('seoul')} ➚</div><div class="tp">18°</div><span style="position:absolute;top:14px;right:14px">${G.sun}</span><div class="ds">${t('mostlySunny')}<small>${t('hiLo')}</small></div></button>
+    <button class="widget wcal" onclick="openApp('calendar', this)">
+      <div class="wd">${wdLong(d.getFullYear(),d.getMonth()+1,d.getDate())}</div>
+      <div class="wn">${d.getDate()}</div>
+    </button>
+    
+    <button class="widget wwx" onclick="openApp('weather', this)" style="background:linear-gradient(180deg, #6a7483, #505965); color:#fff; display:flex; flex-direction:column; justify-content:space-between; padding: 16px;">
+      <div>
+        <div style="font-size:16px; font-weight:600; display:flex; align-items:center; gap:4px;">
+          首尔 <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M21 3L3 10.53v.98l6.84 2.65L12.48 21h.98L21 3z"/></svg>
+        </div>
+        <div id="home-temp" style="font-size:44px; font-weight:300; line-height:1.1; margin-top:4px;">${cachedWeatherTemp}°</div>
+      </div>
+      <div>
+        <div style="font-size:15px; font-weight:500; display:flex; align-items:center; gap:6px;">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg> 多云
+        </div>
+      </div>
+    </button>
+    
     ${HOME_APPS.map(appBtn).join('')}
   </div>
   <div class="dock">${DOCK_APPS.map(appBtn).join('')}</div>`;
+
+  if (!hasFetchedWeather) {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m&timezone=Asia%2FSeoul')
+      .then(res => res.json())
+      .then(data => {
+        hasFetchedWeather = true;
+        cachedWeatherTemp = Math.round(data.current.temperature_2m); 
+        const el = document.getElementById('home-temp');
+        if(el) el.textContent = cachedWeatherTemp + '°';
+      }).catch(e => console.log("天气更新失败", e));
+  }
 }
 
 /* ============================================================
-   页面切换
+   页面切换与统一动画
    ============================================================ */
-const PARENT = { chatRoom:'kakao', friends:'kakao', more:'kakao', search:'kakao', dial:'phone', smsRoom:'messages', igEdit: 'instagram', igHome: 'instagram' };
+const PARENT = { chatRoom:'kakao', friends:'kakao', more:'kakao', search:'kakao', dial:'phone', smsRoom:'messages', igEdit: 'instagram', igHome: 'instagram', twEdit: 'twitter',igDetail: 'igHome' };
 function viewDark(){ if(['lock','pin','home'].includes(view))return true; const p=APP.lastElementChild; return !!(p&&p.dataset.dark); }
-function wireScroll(pg){ const sc=pg.querySelector('.scroll'); if(sc)sc.addEventListener('scroll',()=>pg.classList.toggle('scrolled',sc.scrollTop>38),{passive:true}); }
-function show(id,anim='swap'){
+function wireScroll(pg){
+  const sc=pg.querySelector('.scroll');
+  if(!sc) return;
+  const sync=()=>pg.classList.toggle('scrolled', sc.scrollTop>38);
+  sync();
+  sc.addEventListener('scroll', sync, {passive:true});
+}
+
+function show(id, anim='swap'){
   const old=[...APP.children];
   view=id; const v=VIEWS[id](); const pg=document.createElement('div'); pg.className='pg '+(v.cls||''); pg.innerHTML=v.html;
   if(anim==='pop')APP.insertBefore(pg,APP.firstChild); else APP.appendChild(pg);
-  setStatus(false); wireScroll(pg);
+  currentPg = pg;
+  setStatus(viewDark()); wireScroll(pg);
   const done=()=>old.forEach(o=>o.remove());
-  if(anim==='push'){ pg.classList.add('pushed'); pg.animate([{transform:'translateX(100%)'},{transform:'none'}],{duration:460,easing:'cubic-bezier(.32,.72,0,1)'}); old.forEach(o=>o.animate([{transform:'none'},{transform:'translateX(-28%)'}],{duration:460})); setTimeout(done,460); }
-  else if(anim==='pop'){ pg.animate([{transform:'translateX(-28%)'},{transform:'none'}],{duration:460}); old.forEach(o=>{ o.classList.add('pushed'); o.animate([{transform:'none'},{transform:'translateX(100%)'}],{duration:460,fill:'forwards'}); }); setTimeout(done,460); }
+  if(anim==='push'){ pg.classList.add('pushed'); pg.animate([{transform:'translateX(100%)'},{transform:'none'}],{duration:420,easing:'cubic-bezier(.32,.72,0,1)'}); old.forEach(o=>o.animate([{transform:'none'},{transform:'translateX(-28%)'}],{duration:420})); setTimeout(done,420); }
+  else if(anim==='pop'){ pg.animate([{transform:'translateX(-28%)'},{transform:'none'}],{duration:420}); old.forEach(o=>{ o.classList.add('pushed'); o.animate([{transform:'none'},{transform:'translateX(100%)'}],{duration:420,fill:'forwards'}); }); setTimeout(done,420); }
   else done();
-  v.init&&v.init(pg); return pg;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    v.init && v.init(pg);
+  }));
+  return pg;
 }
-function openApp(id,el){
-  if(view!=='home')return;
-  lastRect=el?relRect(el):null; APP.innerHTML=''; show(id,'none');
-  APP.style.visibility='visible'; APP.getAnimations().forEach(a=>a.cancel());
-  const s=lastRect||{x:166,y:396,w:60,h:60};
-  APP.animate([{transform:`translate(${s.x+s.w/2-SCREEN.clientWidth/2}px,${s.y+s.h/2-SCREEN.clientHeight/2}px) scale(${s.w/SCREEN.clientWidth})`,opacity:.3},{transform:'none',opacity:1}],{duration:540,easing:'cubic-bezier(.2,.9,.22,1)'});
-  HOME.animate([{transform:'none',opacity:1},{transform:'scale(1.1)',opacity:0}],{duration:400,easing:'ease-in'}).onfinish=()=>{ if(view!=='home')HOME.style.visibility='hidden'; };
+
+function openApp(id, el) {
+  if (view !== 'home') return;
+  APP.innerHTML = '';
+  show(id, 'none');
+  APP.style.visibility = 'visible';
+
+  if (appAnim) appAnim.cancel();
+  if (homeAnim) homeAnim.cancel();
+
+  const sr = SCREEN.getBoundingClientRect();
+  const r  = el ? el.getBoundingClientRect() : null;
+  const s  = r
+    ? { x: r.left - sr.left, y: r.top - sr.top, w: r.width, h: r.height }
+    : { x: sr.width / 2 - 30, y: sr.height / 2 - 30, w: 60, h: 60 };
+
+  appAnim = APP.animate([
+    { transform: `translate(${s.x + s.w / 2 - sr.width / 2}px, ${s.y + s.h / 2 - sr.height / 2}px) scale(${s.w / sr.width})`, opacity: .2 },
+    { transform: 'none', opacity: 1 }
+  ], { duration: 420, easing: 'cubic-bezier(.2,.9,.22,1)' });
+
+  homeAnim = HOME.animate([
+    { transform: 'none', opacity: 1 },
+    { transform: 'scale(1.08)', opacity: 0 }
+  ], { duration: 360, easing: 'ease-in' });
+  
+  homeAnim.onfinish = () => {
+    if (view !== 'home') HOME.style.visibility = 'hidden';
+  };
 }
+
 function closeApp(){
   if(['home','lock','pin'].includes(view))return;
-  view='home'; renderHome(); HOME.style.visibility='visible'; setStatus(true);
-  APP.animate([{transform:'none',opacity:1},{transform:'scale(.8)',opacity:0}],{duration:460,easing:'cubic-bezier(.3,.75,.2,1)',fill:'forwards'}).onfinish=()=>{ APP.style.visibility='hidden'; APP.innerHTML=''; };
-  HOME.animate([{transform:'scale(1.1)',opacity:0},{transform:'none',opacity:1}],{duration:460,easing:'cubic-bezier(.2,.9,.22,1)'});
+
+  view='home';
+  currentPg = null;
+  pendingText = ''; pinyinBuf = ''; kbdMode = 'abc';
+
+  HOME.style.visibility='visible';
+  setStatus(true);
+
+  if (appAnim) appAnim.cancel();
+  if (homeAnim) homeAnim.cancel();
+
+  APP.style.pointerEvents = 'none';
+
+  appAnim = APP.animate(
+    [{transform:'none',opacity:1},{transform:'scale(.88)',opacity:0}],
+    {duration:360,easing:'cubic-bezier(.3,.75,.2,1)',fill:'forwards'}
+  );
+  
+  homeAnim = HOME.animate(
+    [{transform:'scale(1.08)',opacity:0},{transform:'none',opacity:1}],
+    {duration:360,easing:'cubic-bezier(.2,.9,.22,1)',fill:'forwards'}
+  );
+
+  appAnim.onfinish = () => {
+    if (view !== 'home') return;
+    APP.style.visibility='hidden';
+    APP.style.pointerEvents=''; 
+    APP.innerHTML='';
+    
+   };
 }
+
 function push(id){ show(id,'push'); }
 function back(){ closeKbd(); if(PARENT[view])show(PARENT[view],'pop'); else closeApp(); }
 function setStatus(dark){
@@ -195,18 +329,14 @@ const SYM_ROWS = [
   ['-','/',':',';','(',')','¥','&','@','"'],
   ['.',',','?','!',"'",'#','%','*','+','=']
 ];
-const EMOJIS = ['😀','😂','🥰','😍','😊','😭','😡','👍','👏','🙏','❤️','🎉','🔥','✨','🌙','☀️','🍚','☕','🎵','📷','💬','✅','❌','⭐','🌈','🍰','🍜','🎂','💐','🐱','🐶','🌸','🍀','💤','🎁','📱','💡','🧡','💛','💚','💙','💜','🖤','🤍','🤎','😴','🤔','😎','🥳','😇'];
+const EMOJIS = ['😀','😂','🥰','😍','😊','😭','😡','👍','👏','🙏','❤️','🔥','✨','🌙','☀️','🍚','☕','🎵','📷','💬','✅','❌','⭐','🌈','🍰','🍜','🎂','💐','🐱','🐶','🌸','🍀','💤','🎁','📱','💡','🧡','💛','💚','💙','💜','🖤','🤍','🤎','😴','🤔','😎','🥳','😇'];
 
 const PINYIN_MAP = {
   'ni':'你','hao':'好','wo':'我','men':'们','ta':'他','shi':'是','de':'的','le':'了','ma':'吗','ne':'呢',
   'zaijian':'再见','xiexie':'谢谢','duibuqi':'对不起','meiguanxi':'没关系','zao':'早','wanan':'晚安',
   'chifan':'吃饭','he':'喝','shui':'水','kafei':'咖啡','mao':'猫','gou':'狗','tianqi':'天气','jintian':'今天',
   'mingtian':'明天','zuotian':'昨天','xingqi':'星期','shijian':'时间','pengyou':'朋友','jia':'家','xuexiao':'学校',
-  'gongzuo':'工作','xiuxi':'休息','shengri':'生日','kuaile':'快乐','xiangni':'想你','ai':'爱','xihuan':'喜欢',
-  'zai':'在','jian':'见','hui':'回','qu':'去','lai':'来','chi':'吃','wan':'玩','kan':'看','ting':'听',
-  'shuo':'说','xiao':'笑','ku':'哭','lei':'累','mang':'忙','kong':'空','you':'有','mei':'没','hen':'很',
-  'tai':'太','zhen':'真','bu':'不','yao':'要','neng':'能','keyi':'可以','zenme':'怎么','shenme':'什么',
-  'wei':'为','yin':'因','suoyi':'所以','danshi':'但是','haode':'好的','xing':'行','dui':'对','cuo':'错'
+  'gongzuo':'工作','xiuxi':'休息','shengri':'生日','kuaile':'快乐','xiangni':'想你','ai':'爱','xihuan':'喜欢'
 };
 function pinyinCandidates(buf){
   const out = [];
@@ -219,30 +349,54 @@ function pinyinCandidates(buf){
 }
 
 function setField(txt, cursor){
-  const f=$('#fld'); if(!f)return;
+  const f=$pg('#fld'); if(!f)return;
   if(!txt && !cursor){ f.className='fld ph'; f.textContent=t('msgInput'); return; }
   f.className='fld';
   f.innerHTML = esc(txt) + (cursor?'<span class="cur"></span>':'');
 }
+
 function openKbd(){
-  const k=$('#kbd'); if(!k)return;
+  const k=$pg('#kbd'); if(!k)return;
   if(!k.classList.contains('open')){
     k.innerHTML = kbdHTML();
     k.classList.add('open');
-    $('#cin').classList.remove('safe');
+    const cin=$pg('#cin'); if(cin) cin.classList.remove('safe');
   }
-  const b=$('#msgs'); if(b) setTimeout(()=>b.scrollTop=b.scrollHeight, 80);
+  const b=$pg('#msgs'); if(b) setTimeout(()=>b.scrollTop=b.scrollHeight, 80);
 }
+
 function closeKbd(){
-  const k=$('#kbd'); if(!k)return;
+  const k=$pg('#kbd'); if(!k)return;
   k.classList.remove('open');
-  $('#cin').classList.add('safe');
+  const cin=$pg('#cin'); if(cin) cin.classList.add('safe');
   hideCand();
 }
+
+function showCand(){
+  const c=$pg('#cand'); if(!c)return;
+  const list = pinyinCandidates(pinyinBuf);
+  if(!list.length){ hideCand(); return; }
+  c.style.display='flex';
+  c.innerHTML = list.map(w=>`<button onclick="pickCand('${esc(w)}')">${esc(w)}</button>`).join('')
+    + `<button class="c-close" onclick="hideCand()">收起</button>`;
+}
+
+function hideCand(){ const c=$pg('#cand'); if(c){ c.style.display='none'; c.innerHTML=''; } pinyinBuf=''; }
+
+function pickCand(word){
+  const parts = pendingText.split(/\s/);
+  parts[parts.length-1] = word;
+  pendingText = parts.join(' ');
+  hideCand();
+  setField(pendingText, true);
+  const snd=$pg('#snd'); if(snd) snd.classList.add('on');
+}
+
 function setKbdMode(m){
   kbdMode = m;
   const k=$('#kbd'); if(k && k.classList.contains('open')) k.innerHTML = kbdHTML();
 }
+
 function toggleEmoji(){ setKbdMode(kbdMode==='emoji'?'abc':'emoji'); openKbd(); }
 
 function kbdHTML(){
@@ -256,7 +410,7 @@ function kbdHTML(){
         <button class="key sp" style="max-width:none;flex:1;font-size:15px" onclick="setKbdMode('123')">123</button>
         <button class="key ret" style="max-width:none;flex:1.6" onclick="kbdKey('ret')">换行</button>
       </div>
-    </div>`;
+    `;
   }
   const isNum = kbdMode==='123';
   const R = isNum ? SYM_ROWS : LETTER_ROWS;
@@ -281,10 +435,6 @@ function kbdHTML(){
       <button class="key wide" onclick="kbdKey('space')">空格</button>
       <button class="key ret" onclick="kbdKey('ret')">换行</button>
     </div>
-    <div class="kbot">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 3.5 5.8 3.5 9s-1 6.2-3.5 9c-2.5-2.8-3.5-5.8-3.5-9s1-6.2 3.5-9Z"/></svg>
-      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
-    </div>
   </div>`;
 }
 
@@ -293,12 +443,13 @@ function kbdChar(ch, el){
   vib(5);
   pendingText += ch;
   setField(pendingText, true);
-  $('#snd').classList.add('on');
+  const snd=$pg('#snd'); if(snd) snd.classList.add('on');
   if(kbdMode!=='123' && /^[a-zA-Z]+$/.test(pendingText.split(/\s/).pop())){
     pinyinBuf = pendingText.split(/\s/).pop().toLowerCase();
     showCand();
   } else hideCand();
 }
+
 function kbdKey(k){
   vib(5);
   if(k==='space'){ pendingText += ' '; hideCand(); }
@@ -306,46 +457,7 @@ function kbdKey(k){
   else if(k==='shift'){ setKbdMode(kbdMode==='ABC'?'abc':'ABC'); return; }
   else if(k==='ret'){ pendingText += '\n'; }
   setField(pendingText, pendingText.length>0);
-  $('#snd').classList.toggle('on', pendingText.length>0);
-}
-function showCand(){
-  const c=$('#cand'); if(!c)return;
-  const list = pinyinCandidates(pinyinBuf);
-  if(!list.length){ hideCand(); return; }
-  c.style.display='flex';
-  c.innerHTML = list.map(w=>`<button onclick="pickCand('${esc(w)}')">${esc(w)}</button>`).join('')
-    + `<button class="c-close" onclick="hideCand()">收起</button>`;
-}
-function hideCand(){ const c=$('#cand'); if(c){ c.style.display='none'; c.innerHTML=''; } pinyinBuf=''; }
-function pickCand(word){
-  const parts = pendingText.split(/\s/);
-  parts[parts.length-1] = word;
-  pendingText = parts.join(' ');
-  hideCand();
-  setField(pendingText, true);
-  $('#snd').classList.add('on');
-}
-
-function sendMsg(){
-  const txt = pendingText.trim();
-  if(!txt) return;
-  const arr = CHATS[chatId] || (CHATS[chatId]=[]);
-  arr.push([txt, 'me', nowTime()]);
-  pendingText=''; pinyinBuf='';
-  setField('', false);
-  $('#snd').classList.remove('on');
-  hideCand();
-  refreshChat();
-  closeKbd();
-  const replies = AUTO_REPLY[chatId] || ['嗯嗯'];
-  const reply = replies[Math.floor(Math.random()*replies.length)];
-  showTyping();
-  setTimeout(()=>{
-    hideTyping();
-    const a = CHATS[chatId];
-    a.push([reply, 'them', nowTime()]);
-    refreshChat();
-  }, 1000 + Math.random()*800);
+  const snd=$pg('#snd'); if(snd) snd.classList.toggle('on', pendingText.length>0);
 }
 
 /* ============================================================
@@ -360,7 +472,7 @@ function toast(msg){
 }
 
 function tick(){ const t0=clock12(); $('#sbt').textContent=t0; const lk=$('#lkt'); if(lk)lk.textContent=t0; }
-setInterval(tick,500); tick();
+setInterval(tick,2000); tick();
 
 $('#hb').addEventListener('click',()=>{
   if(view==='lock'){ goPin(); return; }
@@ -372,7 +484,7 @@ $('#sbk').addEventListener('click',e=>{ e.stopPropagation(); if(['lock','pin','h
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(view==='pin'){ pinCancel(); return; }
-    if(OV.querySelector('.sheet,.profile')){ closeSheet(); return; }
+    if(OV.querySelector('.sheet,.profile,.banner')){ closeSheet(); return; }
     if(['lock','home'].includes(view))return;
     back();
   }
@@ -383,17 +495,14 @@ addEventListener('resize',fit); fit();
 renderLock(); setStatus(true);
 
 /* ============================================================
-   实时消息弹窗通知
+   🌟 核心修复：实时消息弹窗通知 -> 点击直接进入聊天室
    ============================================================ */
 function showNotification(title, body) {
-  // 如果当前正在和这个人聊天，或者正在密码界面，不弹窗
   if (view === 'chatRoom' && chatId === title) return;
   if (view === 'pin') return;
 
-  // 移除旧横幅
   document.querySelectorAll('.banner').forEach(b => b.remove());
 
-  // 创建新横幅
   const b = document.createElement('div');
   b.className = 'banner';
   b.innerHTML = `
@@ -404,55 +513,34 @@ function showNotification(title, body) {
     </div>
   `;
   
-  // 点击横幅直接跳进聊天室
+  // 🎯 点击通知横幅：直接进入 Kakao 聊天室
   b.onclick = () => {
     b.classList.remove('show');
     setTimeout(() => b.remove(), 400);
-    // 如果没解锁就解锁，如果在应用内就关掉应用，再打开聊天
+
+    // 联动逻辑：若处于锁屏，先解锁；如果在其他应用内，则归位清理，再精确切入聊天室
     if (view === 'lock') {
-      // 锁屏状态点击，直接解锁并进入聊天
       unlock();
-      setTimeout(() => { openChat(title); }, 600);
+      setTimeout(() => { openChat(title); }, 500);
     } else {
-      if (view !== 'home') closeApp();
-      setTimeout(() => { openChat(title); }, 400);
+      if (view !== 'home') {
+        APP.innerHTML = '';
+      }
+      view = 'home';
+      openApp('kakao'); // 先进 Kakao 列表
+      setTimeout(() => {
+        openChat(title); // 再瞬间进入对应聊天室
+      }, 300);
     }
   };
 
   OV.appendChild(b);
-
-  // 触发滑入动画
   setTimeout(() => b.classList.add('show'), 50);
 
-  // 5秒后自动收起
-  let timeout = setTimeout(() => {
+  setTimeout(() => {
     if (b.parentNode) {
       b.classList.remove('show');
       setTimeout(() => b.remove(), 400);
     }
   }, 5000);
 }
-
-/* ============================================================
-   自动模拟收到新消息
-   ============================================================ */
-const RANDOM_MSGS = [
-  { from: '小红', text: '你在干嘛呢？' },
-  { from: '妈妈', text: '记得吃饭了吗？' },
-  { from: '小红', text: '晚上别迟到了哦！' },
-  { from: '工作群', text: '文件我发群里了，看下。' }
-];
-
-setInterval(() => {
-  // 如果你在锁屏或者密码界面，也可以弹（由 showNotification 控制）
-  const msg = RANDOM_MSGS[Math.floor(Math.random() * RANDOM_MSGS.length)];
-  
-  // 把消息塞进数据里
-  if (CHATS[msg.from]) {
-    CHATS[msg.from].push([msg.text, 'them', clock12()]);
-  }
-  
-  // 弹窗
-  showNotification(msg.from, msg.text);
-  
-}, 18000); // 18000毫秒 = 18秒
