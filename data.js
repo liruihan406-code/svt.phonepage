@@ -211,16 +211,26 @@ window.TW_DATA = {
     bio: '记录生活。',
     avatar: 'photos/avatar.jpg', 
     tweets: [
-      { id: 1, text: '为什么是remember', time: '2小时前', likes: 1 },
-      { id: 2, text: '我好想他。', time: '昨天', likes: 1 },
-      { id: 3, text: '希望你快乐', time: '昨天', likes: 1 },
-      { id: 4, text: '我真的有这么恋爱脑吗！！', time: '昨天', likes: 1 },
-      { id: 5, text: '他好笨。', time: '昨天', likes: 1 },
+      { id: 1, text: '假如今夜这场爱恋从世界上消失', time: '2026-10-23', likes: 1 },
+      { id: 2, text: '某人居然催我回国给他买手机？？？', time: '2026-07-20', likes: 1},
+      { id: 3, text: '北京欢迎你', time: '2026-07-15', likes: 1 , imgs: ['photos/北京.jpg'], private: true },
+      { id: 4, text: '我真的有这么恋爱脑吗！！可是他真的很好哎', time: '2026-03-02', likes: 1, comments: [
+          { name: '蜜蜜', text: '你完全' , time: '2026-03-02' } ]},
+      { id: 5, text: '崔瀚率生日快乐', time: '2026-02-18', likes: 1, private: true},
       { id: 6, text: '汉江边风是不是太大了！', time: '2026-01-22', likes: 1, comments: [
-          { name: '蜜蜜', text: '让你出去约会、、、', time: '2025-06-17' } ]},
+          { name: '蜜蜜', text: '让你出去约会、、、', time: '2026-01-22' } ]},
+      { id: 3, text: '今年很幸福，明年也要！', time: '2025-12-30', likes: 1 },
+     { id: 3, text: '崔瀚率说这是埃及博物馆，好吧', time: '2025-12-23', likes: 1 , imgs: ['photos/出租.jpg'], private: true},
+     { id: 3, text: '从今天开始可以光明正大牵他手', time: '2025-12-11', likes: 1, comments: [
+          { name: '蜜蜜', text: '这下我蜜蜜真被拐走了' , time: '2025-12-11' } ]},
+     { id: 3, text: '偷偷发一张没关系吧。', time: '2025-09-13', likes: 1, imgs: ['photos/彩排.jpg'], private: true },
+     { id: 3, text: '是可以报备食物的关系吗？这是、、饭友？', time: '2025-09-02', likes: 1, imgs: ['photos/饭.jpg'], comments: [
+          { name: '蜜蜜', text: '我看他不是好人' ,time: '2025-09-02' } ],private: true},
+     { id: 3, text: 'v姓男子大笨蛋', time: '2025-08-15', likes: 1 },
+     { id: 3, text: '想吃草莓蛋糕', time: '2025-07-06', likes: 1 },
       { id: 7, text: '托某人的福吃上了', time: '2025-06-22', imgs:['photos/2.jpg', 'photos/3.jpg'], likes: 2, comments: [ { name: '蜜蜜', text: '好吃的也不带我', time: '2025-06-17' } ] },
       { id: 8, text: '吃饭是约会的意思吗', time: '2025-06-20', likes: 1, comments: [
-          { name: '蜜蜜', text: '你完了', time: '2025-06-20' }]}, 
+          { name: '蜜蜜', text: '你完了', time: '2025-06-20' }], private: true}, 
       { id: 9, text: '蜜蜜让我当心点坏男人', time: '2025-06-17', likes: 1, comments: [
           { name: '蜜蜜', text: '我会时刻盯着你的', time: '2025-06-17' } ] }, 
       { id: 10, text: '今天的月亮很漂亮。', time: '2025-06-17', likes: 1, imgs: ['photos/9.jpg'] },
@@ -251,10 +261,10 @@ mimi: {
     bio: 'Leave a message.',
     avatar: 'photos/v.jpg',
     tweets: [
-      { id: 8, text: '紧张。', time: '2026-06-22', likes: 1 },
-      { id: 7, text: '紧张。', time: '2026-06-22', likes: 1 },
-      { id: 6, text: '紧张。', time: '2026-06-22', likes: 1 },
-      { id: 4, text: '好吃。', time: '2026-06-22', imgs: ['photos/5.jpg'],private: true},
+      { id: 8, text: '她怎么不理我。', time: '2026-10-23', likes: 1 },
+      { id: 6, text: '手机坏了。', time: '2026-07-28', likes: 1 },
+      { id: 7, text: '北京。', time: '2026-07-15', likes: 1 , imgs: ['photos/北京.jpg'] },
+      { id: 4, text: '好吃。她也说好吃。', time: '2026-06-22', imgs: ['photos/5.jpg'],private: true},
       { id: 3,text: '紧张。', time: '2026-06-22', likes: 1, private: true},
       { id: 2, text: '好不容易让珉奎哥把那个预约让给我。', time: '2025-06-20', likes: 8, private: true },
       { id: 1, text: '她说今天的月亮很漂亮。', time: '2025-06-17', imgs: ['photos/9.jpg'], private: true}
