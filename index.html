@@ -17,11 +17,8 @@ button{font:inherit;color:inherit;letter-spacing:inherit;border:0;background:non
 svg{display:block}
 #phone {
   position: relative;
-  width: 100vw; /* 默认占满整个屏幕宽度 */
-  height: 100dvh; /* 高度占满屏幕的动态视口高度 */
-  max-width: 430px; /* 在电脑上最大不超过430px */
-  max-height: 932px; /* 电脑上最大不超过932px */
-  aspect-ratio: 393/852; /* 保持苹果手机的比例 */
+  width: min(100vw, calc((100dvh - 36px) * .4613), 430px);
+  aspect-ratio: 393/852;
   border-radius: 58px;
   overflow: hidden;
   background: #000;
@@ -29,20 +26,12 @@ svg{display:block}
   isolation: isolate;
 }
 
-/* 手机端去掉圆角和边框，让它像全屏应用一样 */
-@media (max-width: 500px) {
-  #phone {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* 优先使用动态视口高度，解决地址栏遮挡问题 */
-    max-width: none;
-    max-height: none;
-    border-radius: 0;
-    box-shadow: none;
-    aspect-ratio: auto; /* 手机端取消比例限制，完全充满屏幕 */
-  }
+/* 手机端去掉圆角和边框，让它像全屏应用一样（保留你原来的设定） */
+#phone.mob {
+  border-radius: 0;
+  box-shadow: none;
+  aspect-ratio: auto;
 }
-#phone.mob{border-radius:0;box-shadow:none;aspect-ratio:auto}
 #screen{position:absolute;inset:0;overflow:hidden}
 #wall{position:absolute;inset:-2px;background:linear-gradient(160deg,#2b3a67,#1e2a4a 40%,#0f1626)}
 #wall.dim{filter:blur(24px) brightness(.62);transform:scale(1.08)}
