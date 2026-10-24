@@ -27,10 +27,15 @@ svg{display:block}
 }
 
 /* 手机端去掉圆角和边框，让它像全屏应用一样（保留你原来的设定） */
+/* 强制覆盖：即使在手机上被加了 mob 类，也保留边框 */
 #phone.mob {
-  border-radius: 0;
-  box-shadow: none;
-  aspect-ratio: auto;
+  border-radius: 58px !important; /* !important 强制生效 */
+  box-shadow: 0 0 0 10px #121214, 0 0 0 12px #3b3b40, 0 0 0 13px #18181a, 0 40px 90px rgba(0, 0, 0, .8) !important;
+  aspect-ratio: 393/852 !important;
+  /* 如果手机屏幕实在太窄，加上一点边距防止边框贴着屏幕边缘 */
+  margin: 20px auto; 
+  max-height: 90dvh; /* 给上下留点空间 */
+  width: calc(90dvh * 0.4613); /* 重新计算宽度，保证不超出屏幕 */
 }
 #screen{position:absolute;inset:0;overflow:hidden}
 #wall{position:absolute;inset:-2px;background:linear-gradient(160deg,#2b3a67,#1e2a4a 40%,#0f1626)}
