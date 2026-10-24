@@ -15,27 +15,40 @@ html,body{height:100%;min-height:100vh;margin:0;background:radial-gradient(ellip
 body{display:flex;align-items:center;justify-content:center}
 button{font:inherit;color:inherit;letter-spacing:inherit;border:0;background:none;padding:0;cursor:pointer}
 svg{display:block}
+/* === 完美边框尺寸版 === */
 #phone {
   position: relative;
-  width: min(100vw, calc((100dvh - 36px) * .4613), 430px);
-  aspect-ratio: 393/852;
+  /* 计算逻辑：优先铺满高度，留出 40px 的上下空间，但最大不超过 430px */
+  width: min(calc((100dvh - 40px) * 0.4613), 430px);
+  aspect-ratio: 393 / 852; /* 强制锁死 iPhone 比例，绝不拉伸 */
   border-radius: 58px;
   overflow: hidden;
   background: #000;
+  /* 你想要的漂亮粗边框 */
   box-shadow: 0 0 0 10px #121214, 0 0 0 12px #3b3b40, 0 0 0 13px #18181a, 0 40px 90px rgba(0, 0, 0, .8);
   isolation: isolate;
+  
+  /* 确保它在屏幕正中间 */
+  margin: auto;
 }
 
-/* 手机端去掉圆角和边框，让它像全屏应用一样（保留你原来的设定） */
-/* 强制覆盖：即使在手机上被加了 mob 类，也保留边框 */
+/* 手机端（只要屏幕宽度小于 600px 就生效） */
+@media (max-width: 600px) {
+  #phone {
+    /* 在手机上，用 100dvh 减去上下留白，算出正确宽度 */
+    width: calc((100dvh - 60px) * 0.4613);
+    /* 稍微缩小一点点边框，免得在手机上显得太笨重 */
+    box-shadow: 0 0 0 8px #121214, 0 0 0 10px #3b3b40, 0 0 0 11px #18181a, 0 20px 50px rgba(0, 0, 0, .8);
+    border-radius: 48px; /* 手机端圆角稍微小一点点 */
+  }
+}
+
+/* 彻底干掉 JS 可能会加上的全屏类，防止它把边框吃掉 */
 #phone.mob {
-  border-radius: 58px !important; /* !important 强制生效 */
+  border-radius: 58px !important;
   box-shadow: 0 0 0 10px #121214, 0 0 0 12px #3b3b40, 0 0 0 13px #18181a, 0 40px 90px rgba(0, 0, 0, .8) !important;
-  aspect-ratio: 393/852 !important;
-  /* 如果手机屏幕实在太窄，加上一点边距防止边框贴着屏幕边缘 */
-  margin: 20px auto; 
-  max-height: 90dvh; /* 给上下留点空间 */
-  width: calc(90dvh * 0.4613); /* 重新计算宽度，保证不超出屏幕 */
+  aspect-ratio: 393 / 852 !important;
+  width: min(calc((100dvh - 40px) * 0.4613), 430px) !important;
 }
 #screen{position:absolute;inset:0;overflow:hidden}
 #wall{position:absolute;inset:-2px;background:linear-gradient(160deg,#2b3a67,#1e2a4a 40%,#0f1626)}
